@@ -2676,10 +2676,10 @@ function expLevelNow(){if(levels.includes(state.level))return state.level;const 
 /* danh sách câu của một chương, giữ chỉ số gốc để mở bằng pickProblem */
 function expItems(level,ch){
   if(typeof getProblems==='function'){const keep={level:state.level,chapter:state.chapter};state.level=level;state.chapter=ch;let arr=[];try{arr=getProblems()}catch{}state.level=keep.level;state.chapter=keep.chapter;
-    return arr.map((p,i)=>{const q=(typeof accQuestion==='function'&&p.id&&accQuestion(p.id))||p;return{i,p,id:String(p.id||''),kind:q.html_document||q.question_type!=null?exbType(q):(p.options&&p.options.length?0:3),lv:p.id||q.difficulty!=null?exbLevel(q):1,lesson:+q.lesson_id||0}})}
+    return arr.map((p,i)=>{const q=(typeof accQuestion==='function'&&p.id&&accQuestion(p.id))||p;return{i,p,id:String(p.id||''),kind:q.html_document||q.question_type!=null?exbType(q):(p.options&&p.options.length?0:3),lv:p.id||q.difficulty!=null?exbLevel(q):1,lesson:+q.lesson_id||(/^\d{9}$/.test(String(q.id||''))?+String(q.id)[3]:0)}})}
   const cc=String(classCodeFor(level)||''),cd=String(chapterCodeFor(level,ch)||'');
   return questionBank.filter(q=>String(q.status||'published').toLowerCase()==='published'&&String(q.class_code||String(q.id).slice(0,2)).padStart(2,'0')===cc&&String(q.chapter_code||String(q.id).slice(2,4)).padStart(2,'0')===cd)
-    .map((q,i)=>({i,p:{id:q.id,type:q.lesson_name||'Bài tập',short:String(q.question||'').replace(/\s+/g,' ').slice(0,110),html_document:q.html_document},id:String(q.id),kind:exbType(q),lv:exbLevel(q),lesson:+q.lesson_id||0}))}
+    .map((q,i)=>({i,p:{id:q.id,type:q.lesson_name||'Bài tập',short:String(q.question||'').replace(/\s+/g,' ').slice(0,110),html_document:q.html_document},id:String(q.id),kind:exbType(q),lv:exbLevel(q),lesson:+q.lesson_id||(/^\d{9}$/.test(String(q.id||''))?+String(q.id)[3]:0)}))}
 function expOpenItem(i){if(typeof pickProblem==='function'&&typeof getProblems==='function'){pickProblem(i);return}const it=expItems(state.level,state.chapter)[i];if(it&&typeof openExerciseDocument==='function')openExerciseDocument(it.id)}
 function expShort(it){let s=it.p.short||it.p.question||'';if(typeof texToPlain==='function')s=texToPlain(s);s=String(s).replace(/^ĐỀ BÀI\s*-\s*ID:\s*\S+\s*/i,'').replace(/\s+/g,' ');return s.length>110?s.slice(0,110)+'…':s}
 function expBar(done,total){const w=total?Math.round(done/total*100):0;return `<span class="exp-bar" aria-hidden="true"><i style="width:${w}%"></i></span>`}
@@ -2728,7 +2728,7 @@ ${cont?`<div class="exp-cont"><span class="eyebrow">${esc(cont.why)}</span><b>${
 <h2 class="exp-title">${esc(rows[chIdx]||'Chưa có chương')}</h2>
 <div class="exp-prog">${expBar(st.done,st.total)}<span class="small">Đã làm <b>${st.done}/${st.total}</b> câu · đúng <b>${right}</b>${st.wrong?` · <a href="#" onclick="go('notebook');return false">${st.wrong} câu sai chờ ôn</a>`:''}</span></div>
 <div class="exp-acts"><button class="btn" type="button" onclick="typeof openTheory==='function'?openTheory():alert('Chưa có video cho chương này.')">▶ Lý thuyết (video)</button><button class="btn" type="button" onclick="go('formulas')">∑ Công thức cốt lõi <span class="small muted">☆ lưu thành thẻ</span></button></div>
-<div class="nb-filters exp-filters">${items.some(it=>it.lesson)&&lessonsHere.length?sel('lesson','Bài',[{k:'',name:'Tất cả'},...lessonsHere.map((n,k)=>({k:k+1,name:n}))]):''}${sel('type','Dạng',[{k:'',name:'Tất cả'},...EXB_TYPES.map(t=>({k:t.k,name:t.name}))])}${sel('band','Mức độ',[{k:'',name:'Tất cả'},...ACC_BANDS.map((b,k)=>({k,name:b.name}))])}${sel('status','Trạng thái',EXP_STATUS)}<span class="small muted">${show.length}/${items.length} câu</span></div>
+<div class="nb-filters exp-filters">${items.some(it=>it.lesson)&&lessonsHere.length?sel('lesson','Bài',[{k:'',name:'Tất cả'},...lessonsHere.map((n,k)=>({k:k+1,name:n+' ('+items.filter(it=>it.lesson===k+1).length+')'}))]):''}${sel('type','Dạng',[{k:'',name:'Tất cả'},...EXB_TYPES.map(t=>({k:t.k,name:t.name}))])}${sel('band','Mức độ',[{k:'',name:'Tất cả'},...ACC_BANDS.map((b,k)=>({k,name:b.name}))])}${sel('status','Trạng thái',EXP_STATUS)}<span class="small muted">${show.length}/${items.length} câu</span></div>
 ${items.length?(show.length?`<ol class="problem-list exp-list">${list}</ol>${show.length>EXP_PAGE*(1+(expView.more||0))?`<button class="btn exp-more" type="button" onclick="expView.more=(expView.more||0)+1;render()">Xem thêm ${Math.min(EXP_PAGE,show.length-EXP_PAGE*(1+(expView.more||0)))} câu</button>`:''}`:`<p class="muted">Không có câu khớp bộ lọc. <a href="#" onclick="expView.type='';expView.band='';expView.status='';expView.lesson='';render();return false">Bỏ lọc</a></p>`):`<div class="notice">Chương này chưa có câu trong ngân hàng. Thử chương khác hoặc vào <a href="#" onclick="go('exams');return false">Thư viện Đề thi</a>.</div>`}
 <div class="exp-foot">${items.length?`<button class="btn" type="button" onclick="expHarder()">⬆ Nâng cao</button>`:''}${hasNext?`<button class="btn" type="button" onclick="expPickChapter(${chIdx+1})">Chương tiếp theo →</button>`:''}</div>
 </div></section></div></div>`}
@@ -3079,6 +3079,68 @@ function exmDownloadHtml(code,withKey){exmClose();const f=exmFind(code);if(!f)re
 ${withKey?`<div class="key"><h2>ĐÁP ÁN</h2><table><thead><tr><th>Câu</th><th>Đáp án</th></tr></thead><tbody>${key.join('')}</tbody></table>${sol?'<h2>LỜI GIẢI</h2>'+sol:''}</div>`:''}
 <p class="meta" style="margin-top:24px">— Hết —<br>Toán AI – Toán Tư duy</p></body></html>`;
   exmSave(exmFileName(e)+(withKey?'-dap-an':'')+'.html',html,'text/html;charset=utf-8')}
+
+</script>
+<script id="toanai-kntt-lessons">
+/* Tên bài theo SGK Toán Kết nối tri thức (bỏ Luyện tập chung, Bài tập cuối chương, Hoạt động thực hành trải nghiệm, Ôn tập).
+   Số bài trong ID (chữ số thứ 4) là thứ tự bài trong chương: 1, 2, 3, … ; số trong ngoặc là số bài trong SGK. */
+const KNTT_LESSONS={
+'Lớp 8':[[1,['Đơn thức','Đa thức','Phép cộng và phép trừ đa thức','Phép nhân đa thức','Phép chia đa thức cho đơn thức']],
+ [6,['Hiệu hai bình phương. Bình phương của một tổng hay một hiệu','Lập phương của một tổng. Lập phương của một hiệu','Tổng và hiệu hai lập phương','Phân tích đa thức thành nhân tử']],
+ [10,['Tứ giác','Hình thang cân','Hình bình hành','Hình chữ nhật','Hình thoi và hình vuông']],
+ [15,['Định lí Thalès trong tam giác','Đường trung bình của tam giác','Tính chất đường phân giác của tam giác']],
+ [18,['Thu thập và phân loại dữ liệu','Biểu diễn dữ liệu bằng bảng, biểu đồ','Phân tích số liệu thống kê dựa vào biểu đồ']],
+ [21,['Phân thức đại số','Tính chất cơ bản của phân thức đại số','Phép cộng và phép trừ phân thức đại số','Phép nhân và phép chia phân thức đại số']],
+ [25,['Phương trình bậc nhất một ẩn','Giải bài toán bằng cách lập phương trình','Khái niệm hàm số và đồ thị của hàm số','Hàm số bậc nhất và đồ thị của hàm số bậc nhất','Hệ số góc của đường thẳng']],
+ [30,['Kết quả có thể và kết quả thuận lợi','Cách tính xác suất của biến cố bằng tỉ số','Mối liên hệ giữa xác suất thực nghiệm với xác suất và ứng dụng']],
+ [33,['Hai tam giác đồng dạng','Ba trường hợp đồng dạng của hai tam giác','Định lí Pythagore và ứng dụng','Các trường hợp đồng dạng của hai tam giác vuông','Hình đồng dạng']],
+ [38,['Hình chóp tam giác đều','Hình chóp tứ giác đều']]],
+'Lớp 9':[[1,['Khái niệm phương trình và hệ hai phương trình bậc nhất hai ẩn','Giải hệ hai phương trình bậc nhất hai ẩn','Giải bài toán bằng cách lập hệ phương trình']],
+ [4,['Phương trình quy về phương trình bậc nhất một ẩn','Bất đẳng thức và tính chất','Bất phương trình bậc nhất một ẩn']],
+ [7,['Căn bậc hai và căn thức bậc hai','Khai căn bậc hai với phép nhân và phép chia','Biến đổi đơn giản và rút gọn biểu thức chứa căn thức bậc hai','Căn bậc ba và căn thức bậc ba']],
+ [11,['Tỉ số lượng giác của góc nhọn','Một số hệ thức giữa cạnh, góc trong tam giác vuông và ứng dụng']],
+ [13,['Mở đầu về đường tròn','Cung và dây của một đường tròn','Độ dài của cung tròn. Diện tích hình quạt tròn và hình vành khuyên','Vị trí tương đối của đường thẳng và đường tròn','Vị trí tương đối của hai đường tròn']],
+ [18,['Hàm số y = ax² (a ≠ 0)','Phương trình bậc hai một ẩn','Định lí Viète và ứng dụng','Giải bài toán bằng cách lập phương trình']],
+ [22,['Bảng tần số và biểu đồ tần số','Bảng tần số tương đối và biểu đồ tần số tương đối','Bảng tần số, tần số tương đối ghép nhóm và biểu đồ']],
+ [25,['Phép thử ngẫu nhiên và không gian mẫu','Xác suất của biến cố liên quan tới phép thử']],
+ [27,['Góc nội tiếp','Đường tròn ngoại tiếp và đường tròn nội tiếp của một tam giác','Tứ giác nội tiếp','Đa giác đều']],
+ [31,['Hình trụ và hình nón','Hình cầu']]],
+'Lớp 10':[[1,['Mệnh đề','Tập hợp và các phép toán trên tập hợp']],
+ [3,['Bất phương trình bậc nhất hai ẩn','Hệ bất phương trình bậc nhất hai ẩn']],
+ [5,['Giá trị lượng giác của một góc từ 0° đến 180°','Hệ thức lượng trong tam giác']],
+ [7,['Các khái niệm mở đầu','Tổng và hiệu của hai vectơ','Tích của một vectơ với một số','Vectơ trong mặt phẳng tọa độ','Tích vô hướng của hai vectơ']],
+ [12,['Số gần đúng và sai số','Các số đặc trưng đo xu thế trung tâm','Các số đặc trưng đo độ phân tán']],
+ [15,['Hàm số','Hàm số bậc hai','Dấu của tam thức bậc hai','Phương trình quy về phương trình bậc hai']],
+ [19,['Phương trình đường thẳng','Vị trí tương đối giữa hai đường thẳng. Góc và khoảng cách','Đường tròn trong mặt phẳng tọa độ','Ba đường conic']],
+ [23,['Quy tắc đếm','Hoán vị, chỉnh hợp và tổ hợp','Nhị thức Newton']],
+ [26,['Biến cố và định nghĩa cổ điển của xác suất','Thực hành tính xác suất theo định nghĩa cổ điển']]],
+'Lớp 11':[[1,['Giá trị lượng giác của góc lượng giác','Công thức lượng giác','Hàm số lượng giác','Phương trình lượng giác cơ bản']],
+ [5,['Dãy số','Cấp số cộng','Cấp số nhân']],
+ [8,['Mẫu số liệu ghép nhóm','Các số đặc trưng đo xu thế trung tâm']],
+ [10,['Đường thẳng và mặt phẳng trong không gian','Hai đường thẳng song song','Đường thẳng và mặt phẳng song song','Hai mặt phẳng song song','Phép chiếu song song']],
+ [15,['Giới hạn của dãy số','Giới hạn của hàm số','Hàm số liên tục']],
+ [18,['Lũy thừa với số mũ thực','Lôgarit','Hàm số mũ và hàm số lôgarit','Phương trình, bất phương trình mũ và lôgarit']],
+ [22,['Hai đường thẳng vuông góc','Đường thẳng vuông góc với mặt phẳng','Phép chiếu vuông góc. Góc giữa đường thẳng và mặt phẳng','Hai mặt phẳng vuông góc','Khoảng cách','Thể tích']],
+ [28,['Biến cố hợp, biến cố giao, biến cố độc lập','Công thức cộng xác suất','Công thức nhân xác suất cho hai biến cố độc lập']],
+ [31,['Định nghĩa và ý nghĩa của đạo hàm','Các quy tắc tính đạo hàm','Đạo hàm cấp hai']]],
+'Lớp 12':[[1,['Tính đơn điệu và cực trị của hàm số','Giá trị lớn nhất và giá trị nhỏ nhất của hàm số','Đường tiệm cận của đồ thị hàm số','Khảo sát sự biến thiên và vẽ đồ thị của hàm số','Ứng dụng đạo hàm để giải quyết một số vấn đề liên quan đến thực tiễn']],
+ [6,['Vectơ trong không gian','Hệ trục tọa độ trong không gian','Biểu thức tọa độ của các phép toán vectơ']],
+ [9,['Khoảng biến thiên và khoảng tứ phân vị','Phương sai và độ lệch chuẩn']],
+ [11,['Nguyên hàm','Tích phân','Ứng dụng hình học của tích phân']],
+ [14,['Phương trình mặt phẳng','Phương trình đường thẳng trong không gian','Công thức tính góc trong không gian','Phương trình mặt cầu']],
+ [18,['Xác suất có điều kiện','Công thức xác suất toàn phần và công thức Bayes']]]};
+/* danh sách bài của chương thứ idx (theo thứ tự chương trong danh mục, bỏ "Ôn tập cuối năm") */
+function knttLessons(level,idx){const name=(chapters[level]||[])[idx]||'';const m=/^Chương\s+(\d+)/i.exec(name);if(!m)return null;const ch=(KNTT_LESSONS[level]||[])[+m[1]-1];return ch?ch[1].map((t,i)=>({n:i+1,sgk:ch[0]+i,name:t})):null}
+function knttLabel(l){return 'Bài '+l.n+'. '+l.name+(l.sgk!==l.n?' (SGK bài '+l.sgk+')':'')}
+const _knttOldLessonList=typeof lessonList==='function'?lessonList:null;
+function lessonList(){if(/^Ôn tập/i.test((chapters[state.level]||[])[state.chapter]||''))return [];const L=knttLessons(state.level,state.chapter);return L?L.map(knttLabel):(_knttOldLessonList?_knttOldLessonList():[])}
+if(typeof exbLessonNames==='function'){var _knttOldExb=exbLessonNames;exbLessonNames=function(ch){const L=knttLessons(exb.level,ch);return L?L.map(l=>l.name):_knttOldExb(ch)}}
+/* ô Bài trong Cập nhật Bài tập: hiện tên bài theo lớp/chương đang chọn */
+function knttFillTagLesson(){const cls=document.getElementById('tagClass'),chs=document.getElementById('tagChapter'),les=document.getElementById('tagLesson');if(!cls||!chs||!les)return;
+  const rows=chapters[cls.value]||[];const idx=rows.findIndex(r=>{const m=/^Chương\s+(\d+)/i.exec(r);return m&&+m[1]===+chs.value});const L=idx>=0?knttLessons(cls.value,idx):null;const cur=les.value;
+  les.innerHTML=(L?L.map(l=>`<option value="${l.n}">${esc(knttLabel(l))}</option>`):[1,2,3,4,5,6,7,8,9].map(n=>`<option value="${n}">Bài ${n}</option>`)).join('');if([...les.options].some(o=>o.value===cur))les.value=cur}
+if(typeof fillTagChapters==='function'){const _f=fillTagChapters;fillTagChapters=function(){_f.apply(this,arguments);knttFillTagLesson()}}
+document.addEventListener('change',e=>{if(e.target&&(e.target.id==='tagChapter'||e.target.id==='tagClass'))knttFillTagLesson()});
 
 </script>
 <script id="toanai-publish">
