@@ -1889,7 +1889,7 @@ function erAnsLine(l){return /^\s*(đáp án|dap an|đa|kết quả|trả lời)
 /* chính: văn bản → {text: văn bản thẻ, report} */
 function recognizeExam(raw){
   let lines=String(raw||'').replace(/\r\n?/g,'\n').replace(/[​﻿]/g,'').split('\n').map(l=>l.replace(/[ \t ]+/g,' ').trim()).filter(l=>l&&!/^\s*-{3,}\s*(hết|het)\s*-{3,}\s*$/i.test(l));
-  const report={questions:0,byType:[0,0,0,0],keyFrom:{key:0,inline:0,mark:0},missing:[],notes:[]};
+  const report={questions:0,byType:[0,0,0,0,0,0,0],keyFrom:{key:0,inline:0,mark:0},missing:[],notes:[]};
   const ks=erKeyStart(lines);let key={};if(ks>=0){key=erParseKey(lines.slice(ks+1));lines=lines.slice(0,ks)}
   const qs=[];let part=null,cur=null,mode='q';
   for(const l of lines){
@@ -1902,15 +1902,17 @@ function recognizeExam(raw){
     (mode==='q'?cur.q:cur.sol).push(l)}
   const out=[];
   qs.forEach((c,idx)=>{
+    /* dòng "Dạng: Chọn nhiều | Kéo thả | Điền…" (đúng dạng đã ghi) và "Lựa chọn: a | b | c" (câu Kéo thả; bảng ngay dưới dòng này cũng là lựa chọn) */
+    let exT=null,luachon='';{const di=c.q.findIndex(l=>/^\s*dạng(?: câu)?\s*:/i.test(l));if(di>=0){const t=parseDang(c.q[di].replace(/^[^:]*:/,''));if(t!==null&&t>=0)exT=t;c.q.splice(di,1)}
+      const li=c.q.findIndex(l=>/^\s*lựa chọn\s*:/i.test(l));if(li>=0)luachon=c.q.splice(li).join(String.fromCharCode(10)).replace(/^\s*lựa chọn\s*:\s*/i,'').trim()}
     /* Hộp công cụ / Gợi ý / Tổng kết viết sau phương án: tách riêng, giữ nguyên để trình đọc thẻ xử lý */
     const xi=c.q.findIndex(l=>/^\s*(hộp công cụ|gợi ý\s*\d*|lỗi dễ mắc|ý tưởng(?: cốt lõi)?|tổng kết|hình động|phản hồi sai)\s*:/i.test(l));const extra=xi>=0?c.q.splice(xi):[];
     const st=typeof tagTakeStars==='function'?tagTakeStars(c.q.join('\n')):{text:c.q.join('\n'),up:new Set(),lo:new Set()};
     const {plain,mask}=erMask(st.text);const solPlain=erMask(c.sol.join('\n')).plain.trim();
-    const tn=erSegments(plain,mask,['A','B','C','D'],true)||erSegments(plain,mask,['A','B','C','D'],false),ds=erDsSegments(plain,mask,c.part);
-    const k=(key[c.part??0]||{})[c.num]||(c.part==null?null:(key[0]||{})[c.num])||'';
-    let type=c.part!=null&&c.part>=0?c.part:tn?0:ds?1:(c.ans||k)&&/^-?\d/.test(c.ans||k)?2:3;
+    const tn=erSegments(plain,mask,['A','B','C','D'],true)||erSegments(plain,mask,['A','B','C','D'],false),k=(key[c.part??0]||{})[c.num]||(c.part==null?null:(key[0]||{})[c.num])||'',ansDS=/^[ds](\s*[-,;]?\s*[ds]){1,7}$/.test(erFold(c.ans||k).trim()),ds=erDsSegments(plain,mask,ansDS?1:c.part);
+    let type=exT!==null?exT:c.part!=null&&c.part>=0?c.part:tn?0:ds?1:(c.ans||k)&&/^-?\d/.test(c.ans||k)?2:3;
     if(type===0&&!tn&&ds)type=1;if(type===1&&!ds&&tn)type=0;
-    const L=['CAU '+(idx+1),'*DANG: '+['TN','DS','TLN','TL'][type]];const note=[];
+    const L=['CAU '+(idx+1),'*DANG: '+['TN','DS','TLN','TL','CN','KT','DIEN'][type]];const note=[];
     const chooseFromSol=()=>typeof tagAnsFromText==='function'?tagAnsFromText(solPlain):((/(?:chọn|đáp án|đa)\s*[:.]?\s*([ABCD])\b/i.exec(solPlain)||[])[1]||'').toUpperCase();
     if(type===0&&tn){let ans='',src='';const kk=/^[abcd]$/i.test(k)?k.toUpperCase():'';const inl=/^[ABCD]\b/i.exec(c.ans)?c.ans[0].toUpperCase():chooseFromSol();const mk=tn.items.map((x,i)=>x.marked?'ABCD'[i]:'').filter(Boolean);
       if(kk){ans=kk;src='key'}else if(st.up.size===1){ans=[...st.up][0];src='mark'}else if(inl){ans=inl;src='inline'}else if(mk.length===1){ans=mk[0];src='mark'}
@@ -1922,6 +1924,7 @@ function recognizeExam(raw){
       if(!marks&&ds.items.some(x=>x.marked)){marks=ds.items.map(x=>x.marked?'D':'S');src='mark'}
       if(src)report.keyFrom[src]++;else report.missing.push(idx+1);
       L.push('*Đề bài: '+ds.stem.trim());ds.items.forEach((x,i)=>L.push('abcdefgh'[i]+') '+x.text+(marks?' ['+marks[i]+']':'')))}
+    else if(type>=4){L.push('*Đề bài: '+erMask(c.q.join(String.fromCharCode(10))).plain.trim());if(type===5&&luachon)L.push('*Lựa chọn: '+luachon);const a=(c.ans||k||'').trim();if(a){L.push('*Đáp án: '+a);report.keyFrom.inline++}else if(type!==4)report.missing.push(idx+1);else report.missing.push(idx+1)}
     else{L.push('*Đề bài: '+plain.trim());if(type===2){const a=(c.ans||(/^-?\d/.test(k)?k:'')).replace(/\s/g,'');if(a){L.push('*Đáp án: '+(/,/.test(a)?a+'|'+a.replace(',','.'):/\./.test(a)?a+'|'+a.replace('.',','):a));report.keyFrom[c.ans?'inline':'key']++}else report.missing.push(idx+1)}}
     if(extra.length)L.push(...extra.map(l=>erMask(l).plain));
     if(solPlain)L.push('*Lời giải:',solPlain.split('\n').map(s=>/^(\*|\/\/)/.test(s)||erQuestionStart(s)?'​'+s:s).join('\n'));
@@ -3246,8 +3249,7 @@ const KNTT_LESSONS={
 /* danh sách bài của chương thứ idx (theo thứ tự chương trong danh mục, bỏ "Ôn tập cuối năm") */
 function knttLessons(level,idx){const name=(chapters[level]||[])[idx]||'';const m=/^Chương\s+(\d+)/i.exec(name);if(!m)return null;const ch=(KNTT_LESSONS[level]||[])[+m[1]-1];return ch?ch[1].map((t,i)=>({n:i+1,sgk:ch[0]+i,name:t})):null}
 function knttLabel(l){return 'Bài '+l.n+'. '+l.name+(l.sgk!==l.n?' (SGK bài '+l.sgk+')':'')}
-const _knttOldLessonList=typeof lessonList==='function'?lessonList:null;
-function lessonList(){if(/^Ôn tập/i.test((chapters[state.level]||[])[state.chapter]||''))return [];const L=knttLessons(state.level,state.chapter);return L?L.map(knttLabel):(_knttOldLessonList?_knttOldLessonList():[])}
+function lessonList(){if(/^Ôn tập/i.test((chapters[state.level]||[])[state.chapter]||''))return [];const L=knttLessons(state.level,state.chapter);return L?L.map(knttLabel):(isTsaLevel(state.level)?[1,2,3,4,5,6,7,8,9].map(n=>'Dạng bài '+n):['Khái niệm và kiến thức cơ bản','Tính chất và định lí','Bài tập vận dụng','Luyện tập tổng hợp'])}
 if(typeof exbLessonNames==='function'){var _knttOldExb=exbLessonNames;exbLessonNames=function(ch){const L=knttLessons(exb.level,ch);return L?L.map(l=>l.name):_knttOldExb(ch)}}
 /* ô Bài trong Cập nhật Bài tập: hiện tên bài theo lớp/chương đang chọn */
 function knttFillTagLesson(){const cls=document.getElementById('tagClass'),chs=document.getElementById('tagChapter'),les=document.getElementById('tagLesson');if(!cls||!chs||!les)return;
